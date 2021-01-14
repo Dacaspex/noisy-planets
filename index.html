@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Noisy planets</title>
+
+    <!-- Bootstrap v4.5.2 -->
+    <!--suppress JSUnresolvedLibraryURL -->
+    <link rel="stylesheet"
+          href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+          integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+
+    <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<div class="np-container">
+    <h1 class="display-4">Noisy planets</h1>
+
+    <canvas id="canvas" style="border: 1px solid #ccc; width: 800px; height: 800px"></canvas>
+</div>
+
+<!-- JQuery -->
+<script src="https://code.jquery.com/jquery-3.4.1.slim.min.js"
+        integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n"
+        crossorigin="anonymous"></script>
+
+<script src="lib/noisejs-master/perlin.js"></script>
+
+<script type="text/javascript">
+    $(document).ready(() => {
+        test();
+    });
+
+    function test() {
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        const width = 800;
+        const height = 800;
+        const n = 1000;
+
+        canvas.width = width;
+        canvas.height = height;
+
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, width, height);
+
+        const xCenter = width / 2;
+        const yCenter = height / 2;
+        const radius = width / 2.8;
+        const scale = 200;
+        let a, r, x, y, p;
+
+        noise.seed(Math.random());
+
+        // ctx.arc(xCenter, yCenter, radius * 1.05, 0, 2 * Math.PI);
+        // ctx.strokeStyle = `rgba(102, 253, 255, 0.5)`;
+        // ctx.lineWidth = 3;
+        // ctx.stroke();
+
+        // Why sqrt -> https://stackoverflow.com/questions/5837572/generate-a-random-point-within-a-circle-uniformly
+        for (let i = 0; i < n; i++) {
+            a = Random.uniform(0, 2 * Math.PI);
+            r = Math.sqrt(Random.uniform(0, 1)) * radius;
+            x = xCenter + (r * Math.cos(a));
+            y = yCenter - (r * Math.sin(a));
+
+            ctx.fillStyle = `rgba(0, ${ Random.uniform(0, 255) }, ${ Random.uniform(0, 255) }, 0.5)`;
+            ctx.fillRect(x, y, 1, 1);
+
+            const sign = Random.uniform(0, 1) >= 0.5 ? 1 : -1;
+            const stroke = Random.uniform(1, 1);
+
+            while (inCircle(xCenter, yCenter, radius, x, y) || Random.uniform(0, 1) >= 1.1) {
+                p = noise.perlin2(x / scale, y / scale);
+                x += Math.sin(p) * sign;
+                y += Math.cos(p) * sign;
+
+                ctx.fillRect(x, y, stroke, stroke);
+            }
+        }
+
+        console.log('done');
+    }
+
+    const CircleGenerator = {};
+
+    function inCircle(xCenter, yCenter, radius, xPoint, yPoint) {
+        return Math.pow(xCenter - xPoint, 2) + Math.pow(yCenter - yPoint, 2) < Math.pow(radius, 2);
+    }
+
+    const Random = {
+        uniform: function (min = 0.0, max = 1.0) {
+            return min + Math.random() * (max - min);
+        }
+    };
+</script>
+</body>
+</html>

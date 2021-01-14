@@ -1,0 +1,9 @@
+.np-container {
+    width: 800px;
+    margin: 0 auto;
+}
+
+canvas {
+    /*image-rendering: pixelated;*/
+    image-rendering: crisp-edges;
+}
