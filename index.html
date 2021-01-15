@@ -7,29 +7,144 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Noisy planets</title>
 
-    <!-- Bootstrap v4.5.2 -->
-    <!--suppress JSUnresolvedLibraryURL -->
-    <link rel="stylesheet"
-          href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
-          integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+    <!-- Bootstrap -->
+    <link rel="stylesheet" href="lib/bootstrap-4.5.3-dist/css/bootstrap.min.css">
+
+    <!--    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400&display=swap" rel="stylesheet">-->
 
     <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
-<div class="np-container">
+<div class="container np-container">
     <h1 class="display-4">Noisy planets</h1>
 
-    <canvas id="canvas" style="border: 1px solid #ccc; width: 800px; height: 800px"></canvas>
+    <canvas id="canvas" class="np-canvas"></canvas>
+
+    <hr/>
+    <h3>Settings</h3>
+
+    <div class="row mb-3">
+        <div class="col-4">
+            <strong>Number of lines</strong><br/>
+            <small></small>
+        </div>
+        <div class="col-8">
+            <input type="number"
+                   class="form-control"
+                   id="setting-particles"
+                   placeholder="Number of lines"
+                   value="1000"/>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-4">
+            <strong>Line flow</strong><br/>
+            <small>Decide in which direction the lines should flow.</small>
+        </div>
+        <div class="col-8">
+            <select class="form-control" id="exampleFormControlSelect1">
+                <option>Unidirectional down</option>
+                <option>Unidirectional up</option>
+                <option>Bidirectional</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-4">
+            <strong>Thickness</strong><br/>
+            <small>Value is randomly chosen between lower and upper bounds for each line.</small>
+        </div>
+        <div class="col-8">
+            <div class="row">
+                <div class="col">
+                    Lowerbound:
+                    <input type="number"
+                           class="form-control"
+                           id="setting-thickness-lowerbound"
+                           placeholder="Number of lines"
+                           value="1"/>
+                </div>
+                <div class="col">
+                    Uppwerbound:
+                    <input type="number"
+                           class="form-control"
+                           id="setting-thickness-upperbound"
+                           placeholder="Number of lines"
+                           value="5"/>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-4">
+            <strong>Radius</strong><br/>
+            <small>Maximum distance from center at which lines start, flow and end.</small>
+        </div>
+        <div class="col-8">
+            <input type="number"
+                   class="form-control"
+                   id="setting-radius"
+                   placeholder="Radius"
+                   value="285"/>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-4">
+            <strong>Complexity</strong><br/>
+            <small></small>
+        </div>
+        <div class="col-8">
+            <input type="number"
+                   class="form-control"
+                   id="setting-noise-zoom"
+                   placeholder="Radius"
+                   value="200"/>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-4">
+            <strong>Edge feather</strong><br/>
+            <small></small>
+        </div>
+        <div class="col-8">
+            <input type="number"
+                   class="form-control"
+                   id="setting-edge-feather"
+                   placeholder="Radius"
+                   value="0"/>
+        </div>
+    </div>
+
 </div>
 
-<!-- JQuery -->
-<script src="https://code.jquery.com/jquery-3.4.1.slim.min.js"
-        integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n"
-        crossorigin="anonymous"></script>
-
+<!-- 3rd party scripts -->
+<script src="lib/jquery/index.js"></script>
 <script src="lib/noisejs-master/perlin.js"></script>
+<script src="lib/bootstrap-4.5.3-dist/js/bootstrap.min.js"></script>
+<script src="lib/bootstrap-4.5.3-dist/js/bootstrap.bundle.min.js"></script>
 
+<!-- Source JavaScript code -->
 <script type="text/javascript">
+    /*
+     * Settings:
+     * - n
+     * - one sided / two sided
+     * - Color scheme
+     * - thickness: value / random between x and y
+     * - background color
+     * - seed: value or random
+     * - radius
+     * - noise zoom
+     * - edge feather: none / chance
+     */
+
+
+    /** @var $ JQuery */
     $(document).ready(() => {
         test();
     });
@@ -38,8 +153,9 @@
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
 
-        const width = 800;
-        const height = 800;
+        const scale = 1;
+        const width = 800 * scale;
+        const height = 800 * scale;
         const n = 1000;
 
         canvas.width = width;
@@ -51,14 +167,14 @@
         const xCenter = width / 2;
         const yCenter = height / 2;
         const radius = width / 2.8;
-        const scale = 200;
+        const noiseZoom = 200 * scale;
         let a, r, x, y, p;
 
         noise.seed(Math.random());
 
         // ctx.arc(xCenter, yCenter, radius * 1.05, 0, 2 * Math.PI);
         // ctx.strokeStyle = `rgba(102, 253, 255, 0.5)`;
-        // ctx.lineWidth = 3;
+        // ctx.lineWidth = 3 * scale;
         // ctx.stroke();
 
         // Why sqrt -> https://stackoverflow.com/questions/5837572/generate-a-random-point-within-a-circle-uniformly
@@ -71,11 +187,12 @@
             ctx.fillStyle = `rgba(0, ${ Random.uniform(0, 255) }, ${ Random.uniform(0, 255) }, 0.5)`;
             ctx.fillRect(x, y, 1, 1);
 
-            const sign = Random.uniform(0, 1) >= 0.5 ? 1 : -1;
-            const stroke = Random.uniform(1, 1);
+            let sign = Random.uniform(0, 1) >= 0.5 ? 1 : -1;
+            sign = 1;
+            const stroke = Random.uniform(scale, 8 * scale);
 
-            while (inCircle(xCenter, yCenter, radius, x, y) || Random.uniform(0, 1) >= 1.1) {
-                p = noise.perlin2(x / scale, y / scale);
+            while (inCircle(xCenter, yCenter, radius, x, y) || Random.uniform(0, 1) >= 1.1 * (1 / scale)) {
+                p = noise.perlin2(x / noiseZoom, y / noiseZoom);
                 x += Math.sin(p) * sign;
                 y += Math.cos(p) * sign;
 
