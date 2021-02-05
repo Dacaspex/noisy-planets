@@ -19,9 +19,17 @@
     <h1 class="display-4">Noisy planets</h1>
 
     <canvas id="canvas" class="np-canvas"></canvas>
+    <div class="d-flex justify-content-center">
+        <div><span>seed: </span><span id="info-seed"></span></div>
+    </div>
 
     <hr/>
-    <h3>Settings</h3>
+    <h3>
+        Settings
+        <small>
+            <div class="btn btn-primary" id="button_update">update</div>
+        </small>
+    </h3>
 
     <div class="row mb-3">
         <div class="col-4">
@@ -34,6 +42,9 @@
                    id="setting-particles"
                    placeholder="Number of lines"
                    value="1000"/>
+            <div class="invalid-feedback d-none" id="setting-particles-feedback">
+                The number of lines cannot be less than 1.
+            </div>
         </div>
     </div>
 
@@ -43,10 +54,23 @@
             <small>Decide in which direction the lines should flow.</small>
         </div>
         <div class="col-8">
-            <select class="form-control" id="exampleFormControlSelect1">
-                <option>Unidirectional down</option>
-                <option>Unidirectional up</option>
-                <option>Bidirectional</option>
+            <select class="form-control" id="setting-flow">
+                <option value="flow__unidirectional_down">Unidirectional down</option>
+                <option value="flow__unidirectional_up" selected="selected">Unidirectional up</option>
+                <option value="bidirectional">Bidirectional</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-4">
+            <strong>Color scheme</strong><br/>
+            <small></small>
+        </div>
+        <div class="col-8">
+            <select class="form-control" id="setting-color-scheme">
+                <option value="color_scheme__coral" selected="selected">Coral</option>
+                <option value="color_scheme__grayscale">Grayscale</option>
             </select>
         </div>
     </div>
@@ -62,7 +86,7 @@
                     Lowerbound:
                     <input type="number"
                            class="form-control"
-                           id="setting-thickness-lowerbound"
+                           id="setting-line-thickness-min"
                            placeholder="Number of lines"
                            value="1"/>
                 </div>
@@ -70,10 +94,13 @@
                     Uppwerbound:
                     <input type="number"
                            class="form-control"
-                           id="setting-thickness-upperbound"
+                           id="setting-line-thickness-max"
                            placeholder="Number of lines"
                            value="5"/>
                 </div>
+            </div>
+            <div class="invalid-feedback d-none" id="setting-line-thickness-feedback">
+                test
             </div>
         </div>
     </div>
@@ -89,6 +116,26 @@
                    id="setting-radius"
                    placeholder="Radius"
                    value="285"/>
+            <div class="invalid-feedback d-none" id="setting-radius-feedback">
+                test
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-4">
+            <strong>Seed</strong><br/>
+            <small>Used to generate random numbers. Leave empty to create a new seed every time.</small>
+        </div>
+        <div class="col-8">
+            <input type="text"
+                   class="form-control"
+                   id="setting-seed"
+                   placeholder="random"
+                   value=""/>
+            <div class="invalid-feedback d-none" id="setting-seed-feedback">
+                test
+            </div>
         </div>
     </div>
 
@@ -100,9 +147,12 @@
         <div class="col-8">
             <input type="number"
                    class="form-control"
-                   id="setting-noise-zoom"
-                   placeholder="Radius"
+                   id="setting-complexity"
+                   placeholder="Complexity"
                    value="200"/>
+            <div class="invalid-feedback d-none" id="setting-complexity-feedback">
+                test
+            </div>
         </div>
     </div>
 
@@ -115,8 +165,11 @@
             <input type="number"
                    class="form-control"
                    id="setting-edge-feather"
-                   placeholder="Radius"
+                   placeholder="Edge feather"
                    value="0"/>
+            <div class="invalid-feedback d-none" id="setting-edge-feather-feedback">
+                test
+            </div>
         </div>
     </div>
 
@@ -127,36 +180,211 @@
 <script src="lib/noisejs-master/perlin.js"></script>
 <script src="lib/bootstrap-4.5.3-dist/js/bootstrap.min.js"></script>
 <script src="lib/bootstrap-4.5.3-dist/js/bootstrap.bundle.min.js"></script>
+<script src="lib/seedrandom/index.js"></script>
 
 <!-- Source JavaScript code -->
 <script type="text/javascript">
     /*
      * Settings:
-     * - n
-     * - one sided / two sided
      * - Color scheme
-     * - thickness: value / random between x and y
      * - background color
      * - seed: value or random
-     * - radius
-     * - noise zoom
-     * - edge feather: none / chance
+     * - dash
      */
-
 
     /** @var $ JQuery */
     $(document).ready(() => {
-        test();
+        render(Settings.get());
+
+        $(jqid('button_update')).click(() => {
+            render(Settings.get());
+        })
     });
 
-    function test() {
+    function jqid(id) {
+        return `#${id}`;
+    }
+
+    const Flow = {
+        UNIDIRECTIONAL_DOWN: 'flow__unidirectional_down',
+        UNIDIRECTIONAL_UP: 'flow__unidirectional_up',
+        BIDIRECTIONAL: 'bidirectional'
+    };
+
+    const ColorScheme = {
+        CORAL: 'color_scheme__coral',
+        GRAYSCALE: 'color_scheme__grayscale',
+    };
+
+    const ColorSchemeResolver = {
+        coral: function () {
+            const color = `rgba(0, ${SeededRandom.uniform(0, 255)}, ${SeededRandom.uniform(0, 255)}, 1)`;
+            return [color, false];
+        },
+
+        grayscale: function () {
+            const random = SeededRandom.uniform(0, 255);
+            const color = ` rgba(${random}, ${random}, ${random})`;
+            return [color, false];
+        },
+
+        getColor: function (scheme) {
+            switch (scheme) {
+                case ColorScheme.CORAL:
+                    return this.coral();
+                case ColorScheme.GRAYSCALE:
+                    return this.grayscale();
+
+            }
+        },
+    };
+
+    const Validators = {
+        positive: function (value) {
+            return value >= 0;
+        },
+
+        strictlyPositive: function (value) {
+            return value > 0;
+        },
+    };
+
+    const Settings = {
+        INVALID_VALUE: '__INVALID__',
+
+        getNumber: function (idValue, idFeedback, validators = []) {
+            const value = Number($(jqid(idValue)).val());
+
+            if (validators.some(validator => !validator(value))) {
+                Settings.toggleFeedback(idValue, idFeedback, true);
+                return Settings.INVALID_VALUE;
+            }
+
+            return value;
+        },
+
+        getNumParticles: function () {
+            const idValue = 'setting-particles';
+            const idFeedback = 'setting-particles-feedback';
+            return Settings.getNumber(idValue, idFeedback, [Validators.strictlyPositive]);
+        },
+
+        getFlow: function () {
+            const id = 'setting-flow';
+            const value = $(jqid(id)).find(':selected').val();
+
+            if (Object.values(Flow).every(flow => flow !== value)) {
+                throw new Error(`Unknown flow found: ${value}`);
+            }
+
+            return value;
+        },
+
+        getColorScheme: function () {
+            const id = 'setting-color-scheme';
+            const value = $(jqid(id)).find(':selected').val();
+
+            if (Object.values(ColorScheme).every(scheme => scheme !== value)) {
+                throw new Error(`Unknown color scheme found: ${value}`);
+            }
+
+            return value;
+        },
+
+        getLineThickness: function () {
+            const idValueMin = 'setting-line-thickness-min';
+            const idValueMax = 'setting-line-thickness-max';
+            const idFeedback = 'setting-line-thickness-feedback';
+
+            const min = Settings.getNumber(idValueMin, idFeedback, [Validators.strictlyPositive]);
+            const max = Settings.getNumber(idValueMax, idFeedback, [Validators.strictlyPositive]);
+
+            if (min === Settings.INVALID_VALUE || max === Settings.INVALID_VALUE) {
+                return Settings.INVALID_VALUE;
+            }
+
+            if (max < min) {
+                Settings.toggleFeedback(idValueMin, idFeedback, true);
+                Settings.toggleFeedback(idValueMax, idFeedback, true);
+                return Settings.INVALID_VALUE;
+            }
+
+            return [min, max];
+        },
+
+        getRadius: function () {
+            const idValue = 'setting-radius';
+            const idFeedback = 'setting-radius-feedback';
+            return Settings.getNumber(idValue, idFeedback, [Validators.strictlyPositive]);
+        },
+
+        getSeed: function () {
+            const idValue = 'setting-seed';
+            const value = $(jqid(idValue)).val();
+            return value === '' ? null : value;
+        },
+
+        getComplexity: function () {
+            const idValue = 'setting-complexity';
+            const idFeedback = 'setting-complexity-feedback';
+            return Settings.getNumber(idValue, idFeedback, [Validators.positive]);
+        },
+
+        getEdgeFeather: function () {
+            const idValue = 'setting-edge-feather';
+            const idFeedback = 'setting-edge-feather-feedback';
+            return Settings.getNumber(idValue, idFeedback, [Validators.positive]);
+        },
+
+        toggleFeedback: function (idValue, idFeedback, toggle) {
+            if (toggle) {
+                $(jqid(idValue)).addClass('is-invalid');
+                $(jqid(idFeedback)).addClass('d-block');
+            } else {
+                $(jqid(idValue)).removeClass('is-invalid');
+                $(jqid(idFeedback)).removeClass('d-block');
+            }
+        },
+
+        resetFeedback: function () {
+            Settings.toggleFeedback('setting-particles', 'setting-particles-feedback', false);
+            Settings.toggleFeedback('setting-line-thickness-min', 'setting-line-thickness-feedback', false);
+            Settings.toggleFeedback('setting-line-thickness-max', 'setting-line-thickness-feedback', false);
+            Settings.toggleFeedback('setting-radius', 'setting-radius-feedback', false);
+            Settings.toggleFeedback('setting-complexity', 'setting-complexity-feedback', false);
+            Settings.toggleFeedback('setting-edge-feather', 'setting-edge-feather-feedback', false);
+        },
+
+        get: function () {
+            Settings.resetFeedback();
+
+            const settings = {
+                numParticles: Settings.getNumParticles(),
+                flow: Settings.getFlow(),
+                colorScheme: Settings.getColorScheme(),
+                lineThickness: Settings.getLineThickness(),
+                radius: Settings.getRadius(),
+                seed: Settings.getSeed(),
+                complexity: Settings.getComplexity(),
+                edgeFeather: Settings.getEdgeFeather()
+            };
+
+            if (Object.values(settings).some(value => value === Settings.INVALID_VALUE)) {
+                return false;
+            }
+
+            return settings;
+        }
+    };
+
+    function render(settings) {
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
 
         const scale = 1;
         const width = 800 * scale;
         const height = 800 * scale;
-        const n = 1000;
+        const n = settings.numParticles;
 
         canvas.width = width;
         canvas.height = height;
@@ -166,53 +394,112 @@
 
         const xCenter = width / 2;
         const yCenter = height / 2;
-        const radius = width / 2.8;
-        const noiseZoom = 200 * scale;
+        const radius = settings.radius;
+        const noiseZoom = settings.complexity * scale;
         let a, r, x, y, p;
 
-        noise.seed(Math.random());
+        const seed = settings.seed !== null ? settings.seed : Random.uniform(0, 1_000_000).toString();
+        SeededRandom.seed(seed);
+        noise.seed(SeededRandom.uniform(0, 1));
 
         // ctx.arc(xCenter, yCenter, radius * 1.05, 0, 2 * Math.PI);
         // ctx.strokeStyle = `rgba(102, 253, 255, 0.5)`;
         // ctx.lineWidth = 3 * scale;
         // ctx.stroke();
 
-        // Why sqrt -> https://stackoverflow.com/questions/5837572/generate-a-random-point-within-a-circle-uniformly
+        const start = Date.now();
+
         for (let i = 0; i < n; i++) {
-            a = Random.uniform(0, 2 * Math.PI);
-            r = Math.sqrt(Random.uniform(0, 1)) * radius;
+            // Why sqrt -> https://stackoverflow.com/questions/5837572/generate-a-random-point-within-a-circle-uniformly
+            a = SeededRandom.uniform(0, 2 * Math.PI);
+            r = Math.sqrt(SeededRandom.uniform(0, 1)) * radius;
             x = xCenter + (r * Math.cos(a));
             y = yCenter - (r * Math.sin(a));
 
-            ctx.fillStyle = `rgba(0, ${ Random.uniform(0, 255) }, ${ Random.uniform(0, 255) }, 0.5)`;
-            ctx.fillRect(x, y, 1, 1);
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.setLineDash([0, 0]);
+            ctx.beginPath();
+            ctx.moveTo(x, y);
 
-            let sign = Random.uniform(0, 1) >= 0.5 ? 1 : -1;
-            sign = 1;
-            const stroke = Random.uniform(scale, 8 * scale);
-
-            while (inCircle(xCenter, yCenter, radius, x, y) || Random.uniform(0, 1) >= 1.1 * (1 / scale)) {
-                p = noise.perlin2(x / noiseZoom, y / noiseZoom);
-                x += Math.sin(p) * sign;
-                y += Math.cos(p) * sign;
-
-                ctx.fillRect(x, y, stroke, stroke);
+            let sign;
+            switch (settings.flow) {
+                case Flow.UNIDIRECTIONAL_DOWN:
+                    sign = -1;
+                    break;
+                case Flow.UNIDIRECTIONAL_UP:
+                    sign = 1;
+                    break;
+                case Flow.BIDIRECTIONAL:
+                    sign = SeededRandom.uniform(0, 1) >= 0.5 ? 1 : -1;
             }
+
+            // This check avoids the division by zero error. The probability to cause
+            // feather is 1 - this variable
+            const notFeatherProb = settings.edgeFeather === 0
+                ? 1
+                : (1 / settings.edgeFeather) * (1 / scale);
+
+            // TODO: Unused feature
+            const amplifier = 1;
+
+            const [color, isAdvanced] = ColorSchemeResolver.getColor(settings.colorScheme);
+            ctx.strokeStyle = color;
+
+            // Compute particle trail
+            while (inCircle(xCenter, yCenter, radius, x, y) || SeededRandom.uniform(0, 1) >= notFeatherProb) {
+                p = noise.perlin2(x / noiseZoom, y / noiseZoom);
+                x += amplifier * Math.sin(p) * sign;
+                y += amplifier * Math.cos(p) * sign;
+
+                if (isAdvanced) {
+                    ctx.strokeStyle = ColorSchemeResolver.getColor(settings.colorScheme)[0];
+                }
+
+                ctx.lineTo(x, y)
+            }
+
+            // Set stroke of particle trail
+            const [thicknessMin, thicknessMax] = settings.lineThickness;
+            ctx.lineWidth = SeededRandom.uniform(thicknessMin * scale, thicknessMax * scale);
+            ctx.stroke();
         }
+
+        const stop = Date.now();
+        const elapsed = stop - start;
+        console.log('elapsed', elapsed);
+
+        $(jqid('info-seed')).text(seed);
 
         console.log('done');
     }
-
-    const CircleGenerator = {};
 
     function inCircle(xCenter, yCenter, radius, xPoint, yPoint) {
         return Math.pow(xCenter - xPoint, 2) + Math.pow(yCenter - yPoint, 2) < Math.pow(radius, 2);
     }
 
     const Random = {
-        uniform: function (min = 0.0, max = 1.0) {
-            return min + Math.random() * (max - min);
+        uniform: function (min, max) {
+            min = Math.ceil(min);
+            max = Math.floor(max);
+            return Math.floor(Math.random() * (max - min + 1)) + min;
         }
+    };
+
+    const SeededRandom = {
+        engine: new Math.seedrandom(),
+
+        seed: function (seed) {
+            this.engine = new Math.seedrandom(seed);
+        },
+
+        int32: function () {
+            return this.engine.int32();
+        },
+
+        uniform: function (min = 0.0, max = 1.0) {
+            return min + this.engine() * (max - min);
+        },
     };
 </script>
 </body>
