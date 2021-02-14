@@ -181,6 +181,7 @@
 <script src="lib/bootstrap-4.5.3-dist/js/bootstrap.min.js"></script>
 <script src="lib/bootstrap-4.5.3-dist/js/bootstrap.bundle.min.js"></script>
 <script src="lib/seedrandom/index.js"></script>
+<script src="lib/d3/d3.js"></script>
 
 <!-- Source JavaScript code -->
 <script type="text/javascript">
@@ -217,24 +218,69 @@
     };
 
     const ColorSchemeResolver = {
+        getNormalisedPositionInCircle: function (data) {
+            const outerWidth = (data.canvas.width / 2) - data.canvas.radius;
+            const outerHeight = (data.canvas.height / 2) - data.canvas.radius;
+            const xNormalised = (data.particle.x - outerWidth) / (2 * data.canvas.radius);
+            const yNormalised = (data.particle.y - outerHeight) / (2 * data.canvas.radius);
+            return {x: xNormalised, y: yNormalised};
+        },
+
         coral: function () {
-            const color = `rgba(0, ${SeededRandom.uniform(0, 255)}, ${SeededRandom.uniform(0, 255)}, 1)`;
-            return [color, false];
+            return `rgba(0, ${SeededRandom.uniform(0, 255)}, ${SeededRandom.uniform(0, 255)}, 1)`;
         },
 
         grayscale: function () {
             const random = SeededRandom.uniform(0, 255);
-            const color = ` rgba(${random}, ${random}, ${random})`;
-            return [color, false];
+            return ` rgba(${random}, ${random}, ${random})`;
         },
 
-        getColor: function (scheme) {
+        temperature: data => {
+            const outerRadius = (data.canvas.width / 2) - data.canvas.radius;
+            const xNormalised = (data.particle.x - outerRadius) / (2 * data.canvas.radius);
+            return d3.interpolatePuOr(xNormalised);
+        },
+
+        shadesOfGreen: function() {
+            return d3.interpolateGreens(SeededRandom.uniform());
+        },
+
+        nightSky: () => {
+            return d3.interpolateCividis(SeededRandom.uniform(-0.8, 1));
+        },
+
+        warmRainbow: function(data) {
+            const pos = this.getNormalisedPositionInCircle(data);
+            return d3.interpolateWarm(pos.y);
+        },
+
+        coolRainbow: function(data) {
+            const pos = this.getNormalisedPositionInCircle(data);
+            return d3.interpolateCool(pos.y);
+        },
+
+        earthSpectrum: function(data) {
+            const pos = this.getNormalisedPositionInCircle(data);
+            return d3.interpolateCubehelixDefault(pos.y);
+        },
+
+        shadesOfPurple: function(data) {
+            return d3.interpolateBuPu(SeededRandom.uniform(0.2, 1));
+        },
+
+        test: function(data) {
+            const pos = this.getNormalisedPositionInCircle(data);
+            return d3.interpolateBuPu(SeededRandom.uniform(0.2, 1));
+        },
+
+        getColor: function (scheme, data) {
+            return this.test(data);
+
             switch (scheme) {
                 case ColorScheme.CORAL:
                     return this.coral();
                 case ColorScheme.GRAYSCALE:
                     return this.grayscale();
-
             }
         },
     };
@@ -443,18 +489,19 @@
             // TODO: Unused feature
             const amplifier = 1;
 
-            const [color, isAdvanced] = ColorSchemeResolver.getColor(settings.colorScheme);
-            ctx.strokeStyle = color;
+            ctx.strokeStyle = ColorSchemeResolver.getColor(
+                settings.colorScheme,
+                {
+                    particle: {x, y, a, r},
+                    canvas: {width, height, xCenter, yCenter, radius}
+                }
+            );
 
             // Compute particle trail
             while (inCircle(xCenter, yCenter, radius, x, y) || SeededRandom.uniform(0, 1) >= notFeatherProb) {
                 p = noise.perlin2(x / noiseZoom, y / noiseZoom);
                 x += amplifier * Math.sin(p) * sign;
                 y += amplifier * Math.cos(p) * sign;
-
-                if (isAdvanced) {
-                    ctx.strokeStyle = ColorSchemeResolver.getColor(settings.colorScheme)[0];
-                }
 
                 ctx.lineTo(x, y)
             }
